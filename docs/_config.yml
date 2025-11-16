@@ -1,0 +1,7 @@
+title: Bubblewrap
+description: Secure sandboxing wrapper for AI coding assistants and CLI tools
+theme: jekyll-theme-cayman
+show_downloads: true
+github:
+  repository_url: https://github.com/soodoku/bubblewrap
+  is_project_page: true
