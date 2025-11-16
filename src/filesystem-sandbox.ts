@@ -138,21 +138,16 @@ export class FilesystemSandbox {
         this.config.tmpDir
       );
     } else {
-      // CI mode: minimal isolation with user namespace but proper UID/GID mapping
-      // We need user namespace for isolation, but map to current user
-      const uid = process.getuid?.() ?? 1000;
-      const gid = process.getgid?.() ?? 1000;
-
+      // CI mode: no user namespace isolation
+      // In GitHub Actions CI, user namespaces with UID/GID mapping require
+      // kernel features that aren't available (unprivileged_userns_clone).
+      // Instead, rely on bind mounts alone for security isolation.
       args.push(
-        '--unshare-user',
-        '--uid', String(uid),
-        '--gid', String(gid),
-
         // Kill sandbox if parent dies
         '--die-with-parent',
 
-        // Bind /proc and /dev (no special mounts needed)
-        '--dev-bind',
+        // Bind /proc and /dev (read-only for security)
+        '--ro-bind',
         '/dev',
         '/dev',
         '--ro-bind',
