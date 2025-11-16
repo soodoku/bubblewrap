@@ -138,12 +138,20 @@ export class FilesystemSandbox {
         this.config.tmpDir
       );
     } else {
-      // CI mode: minimal isolation, just bind mounts
+      // CI mode: minimal isolation with user namespace but proper UID/GID mapping
+      // We need user namespace for isolation, but map to current user
+      const uid = process.getuid?.() ?? 1000;
+      const gid = process.getgid?.() ?? 1000;
+
       args.push(
+        '--unshare-user',
+        '--uid', String(uid),
+        '--gid', String(gid),
+
         // Kill sandbox if parent dies
         '--die-with-parent',
 
-        // Bind /proc and /dev (no namespace required)
+        // Bind /proc and /dev (no special mounts needed)
         '--dev-bind',
         '/dev',
         '/dev',
