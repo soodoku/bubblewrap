@@ -10,7 +10,6 @@ import { CommandWrapper } from './command-wrapper.js';
 import { AiderWrapper } from './wrappers/aider.js';
 import { CodePuppyWrapper } from './wrappers/code-puppy.js';
 import { GenericToolWrapper } from './wrappers/generic.js';
-import { PermissionType } from './types.js';
 import chalk from 'chalk';
 import inquirer from 'inquirer';
 

@@ -112,7 +112,7 @@ program
       let command: string[];
 
       switch (tool) {
-        case 'aider':
+        case 'aider': {
           const { aiderMessage } = await inquirer.prompt([
             {
               type: 'input',
@@ -123,8 +123,9 @@ program
           ]);
           command = ['aider', '--message', aiderMessage];
           break;
+        }
 
-        case 'code-puppy':
+        case 'code-puppy': {
           const { puppyPrompt } = await inquirer.prompt([
             {
               type: 'input',
@@ -135,8 +136,9 @@ program
           ]);
           command = ['code-puppy', '--prompt', puppyPrompt];
           break;
+        }
 
-        case 'custom':
+        case 'custom': {
           const { customCommand } = await inquirer.prompt([
             {
               type: 'input',
@@ -146,6 +148,7 @@ program
           ]);
           command = customCommand.split(' ');
           break;
+        }
 
         case 'shell':
           command = ['bash'];

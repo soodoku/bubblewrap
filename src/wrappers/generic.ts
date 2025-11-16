@@ -3,7 +3,7 @@
  * Use this for any coding assistant or command-line tool
  */
 
-import { CommandWrapper, CommandWrapperOptions } from '../command-wrapper.js';
+import { CommandWrapper } from '../command-wrapper.js';
 import { CommandResult } from '../types.js';
 
 /**

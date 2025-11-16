@@ -4,7 +4,7 @@
 
 import { SandboxManager } from './sandbox-manager.js';
 import { CommandResult } from './types.js';
-import { spawn } from 'child_process';
+import { spawn, ChildProcess } from 'child_process';
 import { EventEmitter } from 'events';
 
 export interface AiderOptions {
@@ -17,7 +17,7 @@ export interface AiderOptions {
 
 export class AiderWrapper extends EventEmitter {
   private sandbox: SandboxManager;
-  private aiderProcess: any = null;
+  private aiderProcess: ChildProcess | null = null;
 
   constructor(
     private workingDir: string,
@@ -89,7 +89,7 @@ export class AiderWrapper extends EventEmitter {
     });
 
     return new Promise((resolve, reject) => {
-      this.aiderProcess.on('close', (code: number) => {
+      this.aiderProcess!.on('close', (code: number) => {
         this.aiderProcess = null;
         if (code === 0) {
           resolve();
@@ -98,7 +98,7 @@ export class AiderWrapper extends EventEmitter {
         }
       });
 
-      this.aiderProcess.on('error', reject);
+      this.aiderProcess!.on('error', reject);
     });
   }
 

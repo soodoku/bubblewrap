@@ -2,9 +2,9 @@
  * Network proxy for controlling outbound connections
  */
 
-import { createServer, Server, Socket } from 'net';
+import { createServer, Server, Socket, connect } from 'net';
 import { connect as tlsConnect } from 'tls';
-import { ProxyConfig, NetworkRequest } from './types.js';
+import { ProxyConfig } from './types.js';
 import { EventEmitter } from 'events';
 import { isIP } from 'net';
 
@@ -300,7 +300,7 @@ export class NetworkProxy extends EventEmitter {
    */
   private forwardHttp(client: Socket, request: string, host: string): void {
     const [hostname, port = '80'] = host.split(':');
-    const remote = connect(parseInt(port, 10), hostname);
+    const remote = connect({ port: parseInt(port, 10), host: hostname });
 
     remote.on('connect', () => {
       remote.write(request);
@@ -317,10 +317,4 @@ export class NetworkProxy extends EventEmitter {
       remote.end();
     });
   }
-}
-
-// Helper function
-function connect(port: number, host: string): Socket {
-  const net = require('net');
-  return net.connect({ port, host });
 }

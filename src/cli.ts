@@ -6,7 +6,6 @@
 
 import { Command } from 'commander';
 import { AiderWrapper } from './aider-wrapper.js';
-import { PermissionType } from './types.js';
 import chalk from 'chalk';
 import inquirer from 'inquirer';
 

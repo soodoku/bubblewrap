@@ -74,7 +74,7 @@ describe('PermissionManager', () => {
     expect(manager.getAll().length).toBe(0);
   });
 
-  it('should emit events on grant', async (context) => {
+  it('should emit events on grant', async () => {
     return new Promise<void>((resolve) => {
       manager.setAutoApprove([PermissionType.FILESYSTEM_READ]);
 

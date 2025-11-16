@@ -8,7 +8,6 @@ import { PlatformSandbox } from '../platform-sandbox.js';
 import { getDefaultConfig } from '../config.js';
 import { homedir } from 'os';
 import { join } from 'path';
-import { writeFileSync, mkdirSync, existsSync } from 'fs';
 
 describe('Security Validation Tests', () => {
   const testDir = process.cwd();

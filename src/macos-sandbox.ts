@@ -18,7 +18,6 @@ export class MacOSSandbox {
     command: string[],
     options: ExecuteOptions = {}
   ): Promise<CommandResult> {
-    const startTime = Date.now();
     const profilePath = await this.createSandboxProfile();
 
     try {

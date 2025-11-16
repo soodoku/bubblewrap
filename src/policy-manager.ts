@@ -2,7 +2,7 @@
  * Policy manager for granular filesystem and network isolation
  */
 
-import { FilesystemIsolation, NetworkIsolation, SandboxPolicy } from './enhanced-types.js';
+import { SandboxPolicy } from './enhanced-types.js';
 import { minimatch } from 'minimatch';
 
 export class PolicyManager {
@@ -113,8 +113,9 @@ export class PolicyManager {
       return true;
     }
 
+    const normalizedProtocol = protocol.toLowerCase().replace(':', '');
     return this.policy.network.allowedProtocols.includes(
-      protocol.toLowerCase() as any
+      normalizedProtocol as 'http' | 'https' | 'ws' | 'wss' | 'ftp' | 'ssh'
     );
   }
 
