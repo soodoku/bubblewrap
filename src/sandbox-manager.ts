@@ -2,7 +2,7 @@
  * Main sandbox manager that integrates all components
  */
 
-import { FilesystemSandbox } from './filesystem-sandbox.js';
+import { PlatformSandbox, ISandbox } from './platform-sandbox.js';
 import { NetworkProxy } from './network-proxy.js';
 import { PermissionManager } from './permission-manager.js';
 import {
@@ -15,7 +15,7 @@ import { getDefaultConfig, validateConfig } from './config.js';
 import { EventEmitter } from 'events';
 
 export class SandboxManager extends EventEmitter {
-  private fsSandbox: FilesystemSandbox;
+  private fsSandbox: ISandbox;
   private networkProxy: NetworkProxy | null = null;
   private permissions: PermissionManager;
   private config: SandboxConfig;
@@ -31,7 +31,7 @@ export class SandboxManager extends EventEmitter {
 
     validateConfig(this.config);
 
-    this.fsSandbox = new FilesystemSandbox(this.config);
+    this.fsSandbox = new PlatformSandbox(this.config);
     this.permissions = new PermissionManager();
 
     // Forward permission events
@@ -66,11 +66,21 @@ export class SandboxManager extends EventEmitter {
       return;
     }
 
-    // Check if bubblewrap is available
-    const bwrapAvailable = await FilesystemSandbox.isAvailable();
-    if (!bwrapAvailable) {
+    // Check if platform sandboxing is available
+    const sandboxAvailable = await PlatformSandbox.isAvailable();
+    if (!sandboxAvailable) {
+      const sandboxType = PlatformSandbox.getSandboxType();
+      const platform = PlatformSandbox.getPlatform();
+
+      let installMsg = '';
+      if (platform === 'linux') {
+        installMsg = 'Install bubblewrap with: apt-get install bubblewrap (or dnf/pacman)';
+      } else if (platform === 'darwin') {
+        installMsg = 'sandbox-exec should be available by default on macOS';
+      }
+
       throw new Error(
-        'bubblewrap is not installed. Install it with: apt-get install bubblewrap'
+        `Sandboxing (${sandboxType}) is not available on ${platform}. ${installMsg}`
       );
     }
 

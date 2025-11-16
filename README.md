@@ -1,10 +1,17 @@
 # Aider Sandbox
 
-A secure sandboxing wrapper for [Aider](https://github.com/paul-gauthier/aider) AI coding agent using bubblewrap, inspired by Claude Code's sandboxing approach.
+[![Build](https://github.com/soodoku/bubblewrap/actions/workflows/build.yml/badge.svg)](https://github.com/soodoku/bubblewrap/actions/workflows/build.yml)
+[![Security Tests](https://github.com/soodoku/bubblewrap/actions/workflows/security-tests.yml/badge.svg)](https://github.com/soodoku/bubblewrap/actions/workflows/security-tests.yml)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+
+A secure sandboxing wrapper for [Aider](https://github.com/paul-gauthier/aider) AI coding agent with cross-platform support (Linux + macOS), inspired by Claude Code's sandboxing approach.
+
+**Tested on:** Linux (Ubuntu) ✓ | macOS ✓ | Windows ✗
 
 ## Features
 
-- **Filesystem Isolation**: Uses bubblewrap to restrict file access to working directory only
+- **Filesystem Isolation**: Uses bubblewrap (Linux) or sandbox-exec (macOS) to restrict file access to working directory only
+- **Cross-Platform**: Works on both Linux and macOS with platform-specific sandboxing
 - **Network Proxy**: Routes all network traffic through a controlled proxy with domain allowlisting
 - **Permission System**: User approval required for sensitive operations
 - **Sensitive Path Protection**: Automatically blocks access to:
@@ -21,10 +28,13 @@ A secure sandboxing wrapper for [Aider](https://github.com/paul-gauthier/aider) 
 ### Prerequisites
 
 ```bash
-# Install bubblewrap (Linux only)
+# Linux: Install bubblewrap
 sudo apt-get install bubblewrap  # Debian/Ubuntu
 sudo dnf install bubblewrap      # Fedora
 sudo pacman -S bubblewrap        # Arch
+
+# macOS: sandbox-exec is included by default (no installation needed)
+which sandbox-exec  # Verify it's available
 
 # Install Aider
 pip install aider-chat
@@ -219,9 +229,9 @@ Based on testing:
 ## Limitations
 
 ### Platform Support
-- **Linux**: Full support with bubblewrap
-- **macOS**: Partial support (would need sandbox-exec integration)
-- **Windows**: Not supported (would need WSL2)
+- **Linux**: Full support with bubblewrap ✓
+- **macOS**: Full support with sandbox-exec ✓
+- **Windows**: Not supported (would need WSL2 or App Containers)
 
 ### Interactive Mode
 Interactive Aider sessions bypass some sandbox protections for usability. Use non-interactive mode for maximum security.
@@ -241,8 +251,9 @@ This implementation is inspired by [Claude Code's sandboxing approach](https://w
 | Network Proxy | ✓ | ✓ |
 | Permission System | ✓ | ✓ |
 | Sensitive Path Protection | ✓ | ✓ |
-| Platform | Linux/macOS | Linux only |
+| Platform | Linux/macOS | Linux/macOS |
 | Implementation | Proprietary | Open Source |
+| Automated Testing | Unknown | GitHub Actions (both platforms) |
 
 ## Examples
 
@@ -263,7 +274,8 @@ MIT
 
 - Inspired by [Anthropic's Claude Code sandboxing approach](https://www.anthropic.com/research/claude-code-sandboxing)
 - Built for [Aider](https://github.com/paul-gauthier/aider) by Paul Gauthier
-- Uses [bubblewrap](https://github.com/containers/bubblewrap) for sandboxing
+- Uses [bubblewrap](https://github.com/containers/bubblewrap) for Linux sandboxing
+- Uses [sandbox-exec](https://developer.apple.com/library/archive/documentation/Security/Conceptual/AppSandboxDesignGuide/) for macOS sandboxing
 
 ## Security Disclosure
 

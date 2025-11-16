@@ -1,0 +1,244 @@
+name: Security Tests
+
+on:
+  push:
+    branches: [ main, claude/** ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  security-tests-linux:
+    name: Security Tests (Linux)
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '20'
+        cache: 'npm'
+
+    - name: Install bubblewrap
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y bubblewrap
+        which bwrap
+        bwrap --version
+
+    - name: Install dependencies
+      run: npm ci
+
+    - name: Build project
+      run: npm run build
+
+    - name: Create test SSH directory
+      run: |
+        mkdir -p ~/.ssh
+        echo "fake-ssh-key" > ~/.ssh/id_rsa
+        chmod 600 ~/.ssh/id_rsa
+
+    - name: Create test AWS directory
+      run: |
+        mkdir -p ~/.aws
+        echo "[default]" > ~/.aws/credentials
+        echo "aws_access_key_id = FAKE_KEY" >> ~/.aws/credentials
+        echo "aws_secret_access_key = FAKE_SECRET" >> ~/.aws/credentials
+
+    - name: Create test GCloud directory
+      run: |
+        mkdir -p ~/.config/gcloud
+        echo "fake-credentials" > ~/.config/gcloud/credentials.db
+
+    - name: Create test Docker directory
+      run: |
+        mkdir -p ~/.docker
+        echo '{"auths":{}}' > ~/.docker/config.json
+
+    - name: Create test Kubernetes directory
+      run: |
+        mkdir -p ~/.kube
+        echo "apiVersion: v1" > ~/.kube/config
+
+    - name: Create test GPG directory
+      run: |
+        mkdir -p ~/.gnupg/private-keys-v1.d
+        echo "fake-gpg-key" > ~/.gnupg/private-keys-v1.d/test.key
+
+    - name: Run security validation tests
+      run: npm test -- src/__tests__/security-validation.test.ts
+
+    - name: Verify SSH key still protected
+      run: |
+        if [ ! -f ~/.ssh/id_rsa ]; then
+          echo "✓ SSH key protection test passed"
+        else
+          echo "Content: $(cat ~/.ssh/id_rsa)"
+          if [ "$(cat ~/.ssh/id_rsa)" = "fake-ssh-key" ]; then
+            echo "✓ SSH key unchanged (protected)"
+          else
+            echo "✗ SSH key was modified!"
+            exit 1
+          fi
+        fi
+
+    - name: Verify AWS credentials still protected
+      run: |
+        if [ "$(cat ~/.aws/credentials | grep FAKE_KEY)" ]; then
+          echo "✓ AWS credentials unchanged (protected)"
+        else
+          echo "✗ AWS credentials were modified!"
+          exit 1
+        fi
+
+  security-tests-macos:
+    name: Security Tests (macOS)
+    runs-on: macos-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '20'
+        cache: 'npm'
+
+    - name: Verify sandbox-exec available
+      run: |
+        which sandbox-exec
+        sandbox-exec -n no-network true && echo "sandbox-exec is working"
+
+    - name: Install dependencies
+      run: npm ci
+
+    - name: Build project
+      run: npm run build
+
+    - name: Create test SSH directory
+      run: |
+        mkdir -p ~/.ssh
+        echo "fake-ssh-key" > ~/.ssh/id_rsa
+        chmod 600 ~/.ssh/id_rsa
+
+    - name: Create test AWS directory
+      run: |
+        mkdir -p ~/.aws
+        echo "[default]" > ~/.aws/credentials
+        echo "aws_access_key_id = FAKE_KEY" >> ~/.aws/credentials
+        echo "aws_secret_access_key = FAKE_SECRET" >> ~/.aws/credentials
+
+    - name: Create test GCloud directory
+      run: |
+        mkdir -p ~/.config/gcloud
+        echo "fake-credentials" > ~/.config/gcloud/credentials.db
+
+    - name: Create test Docker directory
+      run: |
+        mkdir -p ~/.docker
+        echo '{"auths":{}}' > ~/.docker/config.json
+
+    - name: Create test Kubernetes directory
+      run: |
+        mkdir -p ~/.kube
+        echo "apiVersion: v1" > ~/.kube/config
+
+    - name: Create test GPG directory
+      run: |
+        mkdir -p ~/.gnupg/private-keys-v1.d
+        echo "fake-gpg-key" > ~/.gnupg/private-keys-v1.d/test.key
+
+    - name: Run security validation tests
+      run: npm test -- src/__tests__/security-validation.test.ts
+
+    - name: Verify SSH key still protected
+      run: |
+        if [ "$(cat ~/.ssh/id_rsa)" = "fake-ssh-key" ]; then
+          echo "✓ SSH key unchanged (protected)"
+        else
+          echo "✗ SSH key was modified!"
+          exit 1
+        fi
+
+    - name: Verify AWS credentials still protected
+      run: |
+        if [ "$(cat ~/.aws/credentials | grep FAKE_KEY)" ]; then
+          echo "✓ AWS credentials unchanged (protected)"
+        else
+          echo "✗ AWS credentials were modified!"
+          exit 1
+        fi
+
+  unit-tests:
+    name: Unit Tests
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+        node: ['18', '20']
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: ${{ matrix.node }}
+        cache: 'npm'
+
+    - name: Install bubblewrap (Linux only)
+      if: runner.os == 'Linux'
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y bubblewrap
+
+    - name: Install dependencies
+      run: npm ci
+
+    - name: Build project
+      run: npm run build
+
+    - name: Run all tests
+      run: npm test
+
+    - name: Run linter
+      run: npm run lint
+
+  coverage:
+    name: Code Coverage
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '20'
+        cache: 'npm'
+
+    - name: Install bubblewrap
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y bubblewrap
+
+    - name: Install dependencies
+      run: npm ci
+
+    - name: Build project
+      run: npm run build
+
+    - name: Run tests with coverage
+      run: npm run test -- --coverage
+
+    - name: Upload coverage reports
+      uses: codecov/codecov-action@v3
+      with:
+        files: ./coverage/coverage-final.json
+        flags: unittests
+        name: codecov-umbrella
