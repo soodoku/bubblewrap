@@ -97,8 +97,11 @@ export class FilesystemSandbox {
       });
     }
 
+    // Apply resource limits if configured
+    const finalCommand = this.buildResourceLimitedCommand(command);
+
     return new Promise((resolve, reject) => {
-      const [cmd, ...args] = command;
+      const [cmd, ...args] = finalCommand;
       const proc = spawn(cmd, args, {
         env: options.env || process.env,
         cwd: options.cwd || this.config.workingDir,
@@ -151,8 +154,6 @@ export class FilesystemSandbox {
 
     // Commands that read files
     const readCommands = ['cat', 'head', 'tail', 'less', 'more', 'grep', 'find'];
-    // Commands that write files
-    const writeCommands = ['touch', 'echo', 'tee', 'dd'];
     // Commands that check file existence
     const testCommands = ['test', '[', '[['];
 
@@ -165,13 +166,39 @@ export class FilesystemSandbox {
       }
     }
 
-    if (writeCommands.includes(cmd)) {
+    // Special handling for commands with specific syntax
+    if (cmd === 'touch') {
+      // touch creates/updates files
       for (const arg of args) {
         if (!arg.startsWith('-') && !this.isWriteAllowed(arg)) {
           return { allowed: false, reason: `Write access denied to ${arg}` };
         }
       }
     }
+
+    if (cmd === 'tee') {
+      // tee writes to files
+      for (const arg of args) {
+        if (!arg.startsWith('-') && !this.isWriteAllowed(arg)) {
+          return { allowed: false, reason: `Write access denied to ${arg}` };
+        }
+      }
+    }
+
+    if (cmd === 'dd') {
+      // dd uses of= for output file
+      for (const arg of args) {
+        if (arg.startsWith('of=')) {
+          const path = arg.substring(3);
+          if (!this.isWriteAllowed(path)) {
+            return { allowed: false, reason: `Write access denied to ${path}` };
+          }
+        }
+      }
+    }
+
+    // Note: echo doesn't write files directly, only via shell redirection
+    // which is handled in the sh -c case below
 
     if (testCommands.includes(cmd)) {
       // Test commands check file existence - treat as read
