@@ -19,6 +19,12 @@ export interface SandboxConfig {
   allowLocalhost?: boolean;
   allowLoopback?: boolean;
   requireApprovalForNewDomains: boolean;
+
+  // Resource limits
+  maxMemoryMB?: number; // Maximum memory in megabytes
+  maxCPUPercent?: number; // Maximum CPU usage percentage (100 = 1 core)
+  maxProcesses?: number; // Maximum number of processes
+  maxFileSize?: number; // Maximum file size in megabytes
 }
 
 export interface CommandResult {

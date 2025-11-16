@@ -59,6 +59,54 @@ export class FilesystemSandbox {
   }
 
   /**
+   * Build resource-limited command wrapper
+   */
+  private buildResourceLimitedCommand(command: string[]): string[] {
+    const ulimitCommands: string[] = [];
+
+    // Set memory limit (virtual memory in KB)
+    if (this.config.maxMemoryMB) {
+      const memoryKB = this.config.maxMemoryMB * 1024;
+      ulimitCommands.push(`ulimit -v ${memoryKB}`);
+    }
+
+    // Set max file size (in KB)
+    if (this.config.maxFileSize) {
+      const fileSizeKB = this.config.maxFileSize * 1024;
+      ulimitCommands.push(`ulimit -f ${fileSizeKB}`);
+    }
+
+    // Set max processes
+    if (this.config.maxProcesses) {
+      ulimitCommands.push(`ulimit -u ${this.config.maxProcesses}`);
+    }
+
+    // Set CPU time limit (if maxCPUPercent is set, use it as seconds for now)
+    // Note: ulimit -t sets CPU time, not percentage
+    // For true CPU % limiting, we'd need cgroups
+    if (this.config.maxCPUPercent) {
+      // This is a simplified approach - just limit total CPU seconds
+      // A more sophisticated approach would use cgroups
+      const cpuSeconds = Math.floor(this.config.maxCPUPercent * 10); // Rough approximation
+      ulimitCommands.push(`ulimit -t ${cpuSeconds}`);
+    }
+
+    // If we have ulimit commands, wrap the command in a shell
+    if (ulimitCommands.length > 0) {
+      const commandStr = command.map(arg => {
+        // Escape single quotes in arguments
+        const escaped = arg.replace(/'/g, "'\\''");
+        return `'${escaped}'`;
+      }).join(' ');
+
+      const wrappedCommand = `${ulimitCommands.join('; ')}; exec ${commandStr}`;
+      return ['sh', '-c', wrappedCommand];
+    }
+
+    return command;
+  }
+
+  /**
    * Build bubblewrap command line arguments
    */
   private buildBubblewrapArgs(
@@ -70,29 +118,45 @@ export class FilesystemSandbox {
     const args: string[] = [];
 
     // In CI environments, user namespaces may not be available
-    // Use a more permissive mode that still provides isolation
-    if (isCI) {
-      // Only unshare IPC and UTS, skip user namespace
-      args.push('--unshare-ipc', '--unshare-uts');
-    } else {
-      // Full isolation with user namespaces
+    // Skip namespace isolation entirely and just use bind mounts
+    if (!isCI) {
+      // Full isolation with user namespaces (only when not in CI)
       args.push('--unshare-all', '--share-net');
+
+      args.push(
+        // Kill sandbox if parent dies
+        '--die-with-parent',
+
+        // Set up /proc and /dev
+        '--proc',
+        '/proc',
+        '--dev',
+        '/dev',
+
+        // Create tmpfs for /tmp
+        '--tmpfs',
+        this.config.tmpDir
+      );
+    } else {
+      // CI mode: minimal isolation, just bind mounts
+      args.push(
+        // Kill sandbox if parent dies
+        '--die-with-parent',
+
+        // Bind /proc and /dev (no namespace required)
+        '--dev-bind',
+        '/dev',
+        '/dev',
+        '--ro-bind',
+        '/proc',
+        '/proc',
+
+        // Use system /tmp
+        '--bind',
+        this.config.tmpDir,
+        this.config.tmpDir
+      );
     }
-
-    args.push(
-      // Kill sandbox if parent dies
-      '--die-with-parent',
-
-      // Set up /proc and /dev
-      '--proc',
-      '/proc',
-      '--dev',
-      '/dev',
-
-      // Create tmpfs for /tmp
-      '--tmpfs',
-      this.config.tmpDir
-    );
 
     // Add read-only binds for system paths
     for (const path of this.config.allowedReadPaths) {
@@ -114,8 +178,11 @@ export class FilesystemSandbox {
     const cwd = options.cwd || this.config.workingDir;
     args.push('--chdir', cwd);
 
+    // Wrap command with resource limits if configured
+    const finalCommand = this.buildResourceLimitedCommand(command);
+
     // Add the command to execute
-    args.push(...command);
+    args.push(...finalCommand);
 
     return args;
   }

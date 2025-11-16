@@ -103,6 +103,50 @@ ${deniedPaths}
   }
 
   /**
+   * Build resource-limited command wrapper
+   */
+  private buildResourceLimitedCommand(command: string[]): string[] {
+    const ulimitCommands: string[] = [];
+
+    // Set memory limit (virtual memory in KB)
+    if (this.config.maxMemoryMB) {
+      const memoryKB = this.config.maxMemoryMB * 1024;
+      ulimitCommands.push(`ulimit -v ${memoryKB}`);
+    }
+
+    // Set max file size (in KB)
+    if (this.config.maxFileSize) {
+      const fileSizeKB = this.config.maxFileSize * 1024;
+      ulimitCommands.push(`ulimit -f ${fileSizeKB}`);
+    }
+
+    // Set max processes
+    if (this.config.maxProcesses) {
+      ulimitCommands.push(`ulimit -u ${this.config.maxProcesses}`);
+    }
+
+    // Set CPU time limit
+    if (this.config.maxCPUPercent) {
+      const cpuSeconds = Math.floor(this.config.maxCPUPercent * 10);
+      ulimitCommands.push(`ulimit -t ${cpuSeconds}`);
+    }
+
+    // If we have ulimit commands, wrap the command in a shell
+    if (ulimitCommands.length > 0) {
+      const commandStr = command.map(arg => {
+        // Escape single quotes in arguments
+        const escaped = arg.replace(/'/g, "'\\''");
+        return `'${escaped}'`;
+      }).join(' ');
+
+      const wrappedCommand = `${ulimitCommands.join('; ')}; exec ${commandStr}`;
+      return ['sh', '-c', wrappedCommand];
+    }
+
+    return command;
+  }
+
+  /**
    * Run command with sandbox-exec
    */
   private async runSandboxed(
@@ -112,8 +156,11 @@ ${deniedPaths}
   ): Promise<CommandResult> {
     const startTime = Date.now();
 
+    // Wrap command with resource limits if configured
+    const finalCommand = this.buildResourceLimitedCommand(command);
+
     return new Promise((resolve, reject) => {
-      const proc = spawn('sandbox-exec', ['-f', profilePath, ...command], {
+      const proc = spawn('sandbox-exec', ['-f', profilePath, ...finalCommand], {
         cwd: options.cwd || this.config.workingDir,
         env: options.env || process.env,
       });

@@ -38,6 +38,13 @@ export const DEFAULT_BLOCKED_PORTS = [
   3389, // RDP
 ];
 
+export const DEFAULT_RESOURCE_LIMITS = {
+  maxMemoryMB: 2048,      // 2GB RAM limit
+  maxCPUPercent: 100,     // 100% of 1 core
+  maxProcesses: 100,      // Max 100 processes
+  maxFileSize: 1024,      // 1GB max file size
+};
+
 export function getDefaultConfig(workingDir: string): SandboxConfig {
   return {
     workingDir,
@@ -60,6 +67,12 @@ export function getDefaultConfig(workingDir: string): SandboxConfig {
     allowLocalhost: true,  // Allow localhost for local dev servers
     allowLoopback: true,   // Allow loopback connections
     requireApprovalForNewDomains: true,
+
+    // Resource limits (reasonable defaults for coding assistants)
+    maxMemoryMB: DEFAULT_RESOURCE_LIMITS.maxMemoryMB,
+    maxCPUPercent: DEFAULT_RESOURCE_LIMITS.maxCPUPercent,
+    maxProcesses: DEFAULT_RESOURCE_LIMITS.maxProcesses,
+    maxFileSize: DEFAULT_RESOURCE_LIMITS.maxFileSize,
   };
 }
 
