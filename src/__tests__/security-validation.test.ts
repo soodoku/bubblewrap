@@ -121,11 +121,22 @@ describe('Security Validation Tests', () => {
     expect(sandbox.isReadAllowed(testFile)).toBe(true);
     expect(sandbox.isWriteAllowed(testFile)).toBe(true);
 
-    // Test writing
+    // Test writing - use touch and then append to avoid shell quoting issues
     const writeResult = await sandbox.executeCommand(
-      ['sh', '-c', `echo "${testContent}" > ${testFile}`],
+      ['sh', '-c', `touch "${testFile}" && echo "${testContent}" > "${testFile}"`],
       { cwd: testDir }
     );
+
+    // Debug output if failed
+    if (writeResult.exitCode !== 0) {
+      console.error('Write failed:', {
+        exitCode: writeResult.exitCode,
+        stderr: writeResult.stderr,
+        testDir,
+        testFile
+      });
+    }
+
     expect(writeResult.exitCode).toBe(0);
 
     // Test reading
@@ -136,7 +147,7 @@ describe('Security Validation Tests', () => {
     expect(readResult.stdout.trim()).toBe(testContent);
 
     // Cleanup
-    await sandbox.executeCommand(['rm', testFile], { cwd: testDir });
+    await sandbox.executeCommand(['rm', '-f', testFile], { cwd: testDir });
 
     console.log(`✓ TEST 4 PASSED: Working directory read/write allowed`);
   });
