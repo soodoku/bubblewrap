@@ -8,12 +8,17 @@ import { getDefaultConfig } from '../config.js';
 import { platform } from 'os';
 
 describe('Resource Limits Tests', () => {
-  // Skip on macOS since we need bubblewrap
-  const shouldSkip = platform() !== 'linux';
+  // Skip on non-Linux platforms or if bubblewrap is not available
+  const shouldSkip = async () => {
+    if (platform() !== 'linux') {
+      return true;
+    }
+    return !(await FilesystemSandbox.isAvailable());
+  };
 
   it('Should enforce memory limit', async () => {
-    if (shouldSkip) {
-      console.log('⊘ Skipping test on non-Linux platform');
+    if (await shouldSkip()) {
+      console.log('⊘ Skipping test on non-Linux platform or bubblewrap not available');
       return;
     }
 
@@ -43,8 +48,8 @@ describe('Resource Limits Tests', () => {
   });
 
   it('Should enforce process limit', async () => {
-    if (shouldSkip) {
-      console.log('⊘ Skipping test on non-Linux platform');
+    if (await shouldSkip()) {
+      console.log('⊘ Skipping test on non-Linux platform or bubblewrap not available');
       return;
     }
 
@@ -71,8 +76,8 @@ describe('Resource Limits Tests', () => {
   });
 
   it('Should enforce file size limit', async () => {
-    if (shouldSkip) {
-      console.log('⊘ Skipping test on non-Linux platform');
+    if (await shouldSkip()) {
+      console.log('⊘ Skipping test on non-Linux platform or bubblewrap not available');
       return;
     }
 
@@ -96,8 +101,8 @@ describe('Resource Limits Tests', () => {
   });
 
   it('Should allow operations within limits', async () => {
-    if (shouldSkip) {
-      console.log('⊘ Skipping test on non-Linux platform');
+    if (await shouldSkip()) {
+      console.log('⊘ Skipping test on non-Linux platform or bubblewrap not available');
       return;
     }
 

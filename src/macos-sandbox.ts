@@ -107,11 +107,8 @@ ${deniedPaths}
   private buildResourceLimitedCommand(command: string[]): string[] {
     const ulimitCommands: string[] = [];
 
-    // Set memory limit (virtual memory in KB)
-    if (this.config.maxMemoryMB) {
-      const memoryKB = this.config.maxMemoryMB * 1024;
-      ulimitCommands.push(`ulimit -v ${memoryKB}`);
-    }
+    // Note: ulimit -v (virtual memory) is not supported on macOS
+    // We skip memory limits on macOS as they cause "Invalid argument" errors
 
     // Set max file size (in KB)
     if (this.config.maxFileSize) {
