@@ -117,8 +117,6 @@ export class FilesystemSandbox {
 
     const args: string[] = [];
 
-    // In CI environments, user namespaces may not be available
-    // Skip namespace isolation entirely and just use bind mounts
     if (!isCI) {
       // Full isolation with user namespaces (only when not in CI)
       args.push('--unshare-all', '--share-net');
@@ -138,20 +136,30 @@ export class FilesystemSandbox {
         this.config.tmpDir
       );
     } else {
-      // CI mode: minimal isolation, just bind mounts
+      // CI mode: explicit user namespace with uid/gid mapping
+      // This is required because bind mounts need a mount namespace,
+      // which requires a user namespace when running as non-root
       args.push(
+        // Create user namespace and map current user to root inside it
+        '--unshare-user',
+        '--uid', '0',
+        '--gid', '0',
+
         // Kill sandbox if parent dies
         '--die-with-parent',
 
-        // Bind /proc and /dev (no namespace required)
-        '--dev-bind',
-        '/dev',
-        '/dev',
-        '--ro-bind',
-        '/proc',
-        '/proc',
+        // Create minimal namespaces needed for isolation
+        // We avoid --unshare-all to maintain compatibility with restricted environments
+        '--unshare-pid',
+        '--unshare-ipc',
 
-        // Use system /tmp
+        // Set up /proc and /dev
+        '--proc',
+        '/proc',
+        '--dev',
+        '/dev',
+
+        // Use system /tmp with bind mount
         '--bind',
         this.config.tmpDir,
         this.config.tmpDir
