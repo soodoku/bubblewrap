@@ -79,15 +79,16 @@ describe('Security Validation Tests', () => {
     const isAvailable = await PlatformSandbox.isAvailable();
     if (!isAvailable) return;
 
-    // Try to write to /tmp (outside working directory)
-    const outsidePath = '/tmp/sandbox-test-forbidden.txt';
+    // Try to write to home directory (outside working directory)
+    // Note: /tmp is explicitly allowed as tmpDir, so we use home directory instead
+    const outsidePath = join(homedir(), 'sandbox-test-forbidden.txt');
 
     // First verify the path is blocked by permission checker
     expect(sandbox.isWriteAllowed(outsidePath)).toBe(false);
 
     // Then verify actual execution is blocked
     const result = await sandbox.executeCommand(
-      ['sh', '-c', `echo "malicious" > ${outsidePath}`],
+      ['sh', '-c', `echo "malicious" > "${outsidePath}"`],
       { cwd: testDir }
     );
 
