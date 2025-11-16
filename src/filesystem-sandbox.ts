@@ -140,6 +140,177 @@ export class FilesystemSandbox {
   }
 
   /**
+   * Extract file paths from command arguments based on command-specific parsing rules
+   */
+  private extractFilePaths(cmd: string, args: string[]): { readPaths: string[]; writePaths: string[] } {
+    const readPaths: string[] = [];
+    const writePaths: string[] = [];
+
+    // Flags that take arguments (not file paths)
+    const flagsWithArgs: Record<string, string[]> = {
+      grep: ['-e', '-f', '-m', '-A', '-B', '-C', '--regexp', '--file', '--max-count'],
+      head: ['-n', '-c', '--lines', '--bytes'],
+      tail: ['-n', '-c', '--lines', '--bytes'],
+      find: ['-name', '-type', '-size', '-user', '-group', '-perm', '-exec', '-maxdepth', '-mindepth'],
+    };
+
+    const commandFlags = flagsWithArgs[cmd] || [];
+    let skipNext = false;
+
+    switch (cmd) {
+      case 'cat':
+      case 'head':
+      case 'tail':
+      case 'less':
+      case 'more':
+        // All non-flag arguments are file paths
+        for (let i = 0; i < args.length; i++) {
+          if (skipNext) {
+            skipNext = false;
+            continue;
+          }
+          const arg = args[i];
+          if (arg.startsWith('-')) {
+            // Check if this flag takes an argument
+            if (commandFlags.includes(arg)) {
+              skipNext = true;
+            }
+          } else {
+            readPaths.push(arg);
+          }
+        }
+        break;
+
+      case 'grep':
+        // First non-flag argument is the pattern, rest are files
+        let foundPattern = false;
+        for (let i = 0; i < args.length; i++) {
+          if (skipNext) {
+            skipNext = false;
+            continue;
+          }
+          const arg = args[i];
+          if (arg.startsWith('-')) {
+            // Check if this flag takes an argument
+            if (commandFlags.includes(arg)) {
+              skipNext = true;
+            }
+          } else {
+            if (!foundPattern) {
+              // This is the pattern, not a file
+              foundPattern = true;
+            } else {
+              // These are files
+              readPaths.push(arg);
+            }
+          }
+        }
+        break;
+
+      case 'find':
+        // First non-flag argument is the directory, then predicates
+        let foundDirectory = false;
+        for (let i = 0; i < args.length; i++) {
+          if (skipNext) {
+            skipNext = false;
+            continue;
+          }
+          const arg = args[i];
+          if (!foundDirectory && !arg.startsWith('-')) {
+            // First non-flag arg is the directory to search
+            readPaths.push(arg);
+            foundDirectory = true;
+          } else if (arg.startsWith('-')) {
+            // Check if this flag takes an argument
+            if (commandFlags.includes(arg)) {
+              skipNext = true;
+            }
+          }
+          // Other args are predicates, not file paths
+        }
+        break;
+
+      case 'touch':
+      case 'tee':
+        // All non-flag arguments are file paths (write access)
+        for (let i = 0; i < args.length; i++) {
+          if (skipNext) {
+            skipNext = false;
+            continue;
+          }
+          const arg = args[i];
+          if (arg.startsWith('-')) {
+            if (commandFlags.includes(arg)) {
+              skipNext = true;
+            }
+          } else {
+            writePaths.push(arg);
+          }
+        }
+        break;
+
+      case 'echo':
+        // Echo arguments are not file paths (unless redirected, handled separately)
+        // No file paths to extract
+        break;
+
+      case 'dd':
+        // dd uses if=/path and of=/path syntax
+        for (const arg of args) {
+          if (arg.startsWith('if=')) {
+            readPaths.push(arg.substring(3));
+          } else if (arg.startsWith('of=')) {
+            writePaths.push(arg.substring(3));
+          }
+        }
+        break;
+
+      case 'test':
+      case '[':
+      case '[[':
+        // Test commands: look for file test operators
+        // Common patterns: -f file, -d dir, -e path, file1 -nt file2, etc.
+        for (let i = 0; i < args.length; i++) {
+          const arg = args[i];
+          if (arg === ']') continue; // Skip closing bracket
+
+          // File test operators that take a path argument
+          if (['-f', '-d', '-e', '-r', '-w', '-x', '-s', '-L', '-h'].includes(arg)) {
+            if (i + 1 < args.length) {
+              readPaths.push(args[i + 1]);
+              i++; // Skip the path
+            }
+          }
+          // Binary operators with file paths on both sides
+          else if (['-nt', '-ot', '-ef'].includes(arg)) {
+            // Previous and next arguments are file paths
+            if (i > 0 && args[i - 1] !== ']' && !args[i - 1].startsWith('-')) {
+              // Previous arg already processed, just add next
+            }
+            if (i + 1 < args.length) {
+              readPaths.push(args[i + 1]);
+              i++; // Skip the path
+            }
+          }
+          // Standalone file path (e.g., [ -f file ] or [ file ])
+          else if (
+            !arg.startsWith('-') &&
+            (i === 0 || !['-eq', '-ne', '-lt', '-le', '-gt', '-ge', '=', '!=', '-z', '-n'].includes(args[i - 1]))
+          ) {
+            readPaths.push(arg);
+          }
+        }
+        break;
+
+      default:
+        // Unknown command - don't extract any paths
+        break;
+    }
+
+    return { readPaths, writePaths };
+  }
+
+  /**
    * Validate command for forbidden file access
    */
   private validateCommand(command: string[]): { allowed: boolean; reason?: string } {
@@ -156,28 +327,21 @@ export class FilesystemSandbox {
     // Commands that check file existence
     const testCommands = ['test', '[', '[['];
 
-    // Check direct file access commands
-    if (readCommands.includes(cmd)) {
-      for (const arg of args) {
-        if (!arg.startsWith('-') && !this.isReadAllowed(arg)) {
-          return { allowed: false, reason: `Read access denied to ${arg}` };
+    // Use command-aware argument parsing
+    if (readCommands.includes(cmd) || writeCommands.includes(cmd) || testCommands.includes(cmd)) {
+      const { readPaths, writePaths } = this.extractFilePaths(cmd, args);
+
+      // Validate read paths
+      for (const path of readPaths) {
+        if (!this.isReadAllowed(path)) {
+          return { allowed: false, reason: `Read access denied to ${path}` };
         }
       }
-    }
 
-    if (writeCommands.includes(cmd)) {
-      for (const arg of args) {
-        if (!arg.startsWith('-') && !this.isWriteAllowed(arg)) {
-          return { allowed: false, reason: `Write access denied to ${arg}` };
-        }
-      }
-    }
-
-    if (testCommands.includes(cmd)) {
-      // Test commands check file existence - treat as read
-      for (const arg of args) {
-        if (!arg.startsWith('-') && arg !== ']' && !this.isReadAllowed(arg)) {
-          return { allowed: false, reason: `Access denied to ${arg}` };
+      // Validate write paths
+      for (const path of writePaths) {
+        if (!this.isWriteAllowed(path)) {
+          return { allowed: false, reason: `Write access denied to ${path}` };
         }
       }
     }
