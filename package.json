@@ -1,0 +1,40 @@
+{
+  "name": "aider-sandbox",
+  "version": "1.0.0",
+  "description": "Sandboxed wrapper for Aider AI coding agent using bubblewrap",
+  "main": "dist/index.js",
+  "type": "module",
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsx src/index.ts",
+    "test": "vitest",
+    "sandbox": "tsx src/cli.ts",
+    "lint": "eslint src --ext .ts"
+  },
+  "keywords": [
+    "aider",
+    "sandbox",
+    "bubblewrap",
+    "security",
+    "ai-agent"
+  ],
+  "author": "",
+  "license": "MIT",
+  "dependencies": {
+    "chalk": "^5.3.0",
+    "commander": "^11.1.0",
+    "inquirer": "^9.2.12"
+  },
+  "devDependencies": {
+    "@types/node": "^20.10.0",
+    "@typescript-eslint/eslint-plugin": "^6.13.0",
+    "@typescript-eslint/parser": "^6.13.0",
+    "eslint": "^8.54.0",
+    "tsx": "^4.7.0",
+    "typescript": "^5.3.3",
+    "vitest": "^1.0.4"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}

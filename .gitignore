@@ -1,0 +1,12 @@
+node_modules/
+dist/
+*.log
+.env
+.DS_Store
+coverage/
+.idea/
+.vscode/
+*.swp
+*.swo
+.aider*
+sandbox-config.json
