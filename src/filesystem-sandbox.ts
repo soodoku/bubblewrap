@@ -10,13 +10,15 @@ export class FilesystemSandbox {
 
   constructor(private config: SandboxConfig) {
     // In CI environments without user namespace support, we can't use bubblewrap's
-    // mount isolation features. Fall back to direct execution with permission checking.
+    // mount isolation features. Fall back to direct execution WITHOUT sandboxing.
     const isCI = process.env.CI === 'true' || process.env.GITHUB_ACTIONS === 'true';
     if (isCI) {
       // GitHub Actions and similar CI environments typically don't support user namespaces
       // which are required for bubblewrap's bind mounts. Use direct execution instead.
       this.useDirectExecution = true;
-      console.log('CI environment detected - using direct execution with permission validation');
+      console.warn('⚠️  CI environment detected - bubblewrap sandboxing is DISABLED');
+      console.warn('⚠️  Commands will run with full filesystem access');
+      console.warn('⚠️  For secure sandboxing in CI, use Docker or similar containerization');
     }
   }
 
@@ -78,25 +80,16 @@ export class FilesystemSandbox {
 
   /**
    * Execute command directly without bubblewrap (for CI environments)
-   * Validates paths and blocks forbidden access
+   *
+   * WARNING: This mode does NOT provide security sandboxing.
+   * Commands run with full access to the filesystem.
+   * For secure sandboxing in CI, use Docker or similar containerization.
    */
   private executeDirectly(
     command: string[],
     options: ExecuteOptions,
     startTime: number
   ): Promise<CommandResult> {
-    // Validate command for forbidden file access
-    const validation = this.validateCommand(command);
-    if (!validation.allowed) {
-      const duration = Date.now() - startTime;
-      return Promise.resolve({
-        exitCode: 1,
-        stdout: '',
-        stderr: `Permission denied: ${validation.reason}`,
-        duration,
-      });
-    }
-
     return new Promise((resolve, reject) => {
       const [cmd, ...args] = command;
       const proc = spawn(cmd, args, {
@@ -137,83 +130,6 @@ export class FilesystemSandbox {
         }, options.timeout);
       }
     });
-  }
-
-  /**
-   * Validate command for forbidden file access
-   */
-  private validateCommand(command: string[]): { allowed: boolean; reason?: string } {
-    if (command.length === 0) {
-      return { allowed: true };
-    }
-
-    const [cmd, ...args] = command;
-
-    // Commands that read files
-    const readCommands = ['cat', 'head', 'tail', 'less', 'more', 'grep', 'find'];
-    // Commands that write files
-    const writeCommands = ['touch', 'echo', 'tee', 'dd'];
-    // Commands that check file existence
-    const testCommands = ['test', '[', '[['];
-
-    // Check direct file access commands
-    if (readCommands.includes(cmd)) {
-      for (const arg of args) {
-        if (!arg.startsWith('-') && !this.isReadAllowed(arg)) {
-          return { allowed: false, reason: `Read access denied to ${arg}` };
-        }
-      }
-    }
-
-    if (writeCommands.includes(cmd)) {
-      for (const arg of args) {
-        if (!arg.startsWith('-') && !this.isWriteAllowed(arg)) {
-          return { allowed: false, reason: `Write access denied to ${arg}` };
-        }
-      }
-    }
-
-    if (testCommands.includes(cmd)) {
-      // Test commands check file existence - treat as read
-      for (const arg of args) {
-        if (!arg.startsWith('-') && arg !== ']' && !this.isReadAllowed(arg)) {
-          return { allowed: false, reason: `Access denied to ${arg}` };
-        }
-      }
-    }
-
-    // Check shell commands (sh -c "...")
-    if (cmd === 'sh' && args.length >= 2 && args[0] === '-c') {
-      const shellScript = args[1];
-
-      // Parse shell script for file operations
-      // Look for output redirections (>, >>)
-      const writeRedirects = shellScript.match(/>\s*([^\s;&|]+)/g);
-      if (writeRedirects) {
-        for (const match of writeRedirects) {
-          const path = match.replace(/^>\s*/, '').replace(/^"([^"]+)"$/, '$1');
-          if (!this.isWriteAllowed(path)) {
-            return { allowed: false, reason: `Write access denied to ${path}` };
-          }
-        }
-      }
-
-      // Look for file read operations (cat, head, tail, etc.)
-      for (const readCmd of readCommands) {
-        const pattern = new RegExp(`${readCmd}\\s+([^\\s;&|]+)`, 'g');
-        const matches = shellScript.matchAll(pattern);
-        for (const match of matches) {
-          if (match[1]) {
-            const path = match[1].replace(/^"([^"]+)"$/, '$1').replace(/^'([^']+)'$/, '$1');
-            if (!path.startsWith('-') && !this.isReadAllowed(path)) {
-              return { allowed: false, reason: `Read access denied to ${path}` };
-            }
-          }
-        }
-      }
-    }
-
-    return { allowed: true };
   }
 
   /**
