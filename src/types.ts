@@ -11,6 +11,13 @@ export interface SandboxConfig {
   enableNetworkProxy: boolean;
   allowedDomains: string[];
   blockedDomains: string[];
+  allowedIPs?: string[];
+  blockedIPs?: string[];
+  allowedPorts?: number[];
+  blockedPorts?: number[];
+  allowedProtocols?: ('http' | 'https' | 'ws' | 'wss' | 'ftp' | 'ssh')[];
+  allowLocalhost?: boolean;
+  allowLoopback?: boolean;
   requireApprovalForNewDomains: boolean;
 }
 
@@ -46,6 +53,13 @@ export interface NetworkRequest {
 export interface ProxyConfig {
   allowedDomains: string[];
   blockedDomains: string[];
+  allowedIPs?: string[];
+  blockedIPs?: string[];
+  allowedPorts?: number[];
+  blockedPorts?: number[];
+  allowedProtocols?: ('http' | 'https' | 'ws' | 'wss' | 'ftp' | 'ssh')[];
+  allowLocalhost?: boolean;
+  allowLoopback?: boolean;
   requireApproval: boolean;
   socketPath: string;
 }

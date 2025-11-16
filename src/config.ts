@@ -32,6 +32,12 @@ export const DEFAULT_BLOCKED_DOMAINS = [
   // Add domains you want to explicitly block
 ];
 
+export const DEFAULT_BLOCKED_PORTS = [
+  22,   // SSH
+  23,   // Telnet
+  3389, // RDP
+];
+
 export function getDefaultConfig(workingDir: string): SandboxConfig {
   return {
     workingDir,
@@ -50,6 +56,9 @@ export function getDefaultConfig(workingDir: string): SandboxConfig {
     enableNetworkProxy: true,
     allowedDomains: DEFAULT_ALLOWED_DOMAINS,
     blockedDomains: DEFAULT_BLOCKED_DOMAINS,
+    blockedPorts: DEFAULT_BLOCKED_PORTS,
+    allowLocalhost: true,  // Allow localhost for local dev servers
+    allowLoopback: true,   // Allow loopback connections
     requireApprovalForNewDomains: true,
   };
 }

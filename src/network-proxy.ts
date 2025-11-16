@@ -6,6 +6,7 @@ import { createServer, Server, Socket } from 'net';
 import { connect as tlsConnect } from 'tls';
 import { ProxyConfig, NetworkRequest } from './types.js';
 import { EventEmitter } from 'events';
+import { isIP } from 'net';
 
 export class NetworkProxy extends EventEmitter {
   private server: Server | null = null;
@@ -74,7 +75,7 @@ export class NetworkProxy extends EventEmitter {
 
         client.off('data', onData);
 
-        const allowed = await this.checkAccess(host);
+        const allowed = await this.checkAccess(host, port);
         if (!allowed) {
           client.write('HTTP/1.1 403 Forbidden\r\n\r\n');
           client.end();
@@ -93,14 +94,16 @@ export class NetworkProxy extends EventEmitter {
         const urlMatch = buffer.match(/Host: ([^\r\n]+)/);
         if (urlMatch) {
           const host = urlMatch[1];
+          const [hostname, portStr] = host.split(':');
+          const port = portStr ? parseInt(portStr, 10) : 80;
 
           client.off('data', onData);
 
-          const allowed = await this.checkAccess(host);
+          const allowed = await this.checkAccess(hostname, port);
           if (!allowed) {
             client.write('HTTP/1.1 403 Forbidden\r\n\r\n');
             client.end();
-            this.emit('blocked', { host });
+            this.emit('blocked', { host: hostname, port });
             return;
           }
 
@@ -121,12 +124,32 @@ export class NetworkProxy extends EventEmitter {
   /**
    * Check if access to domain is allowed
    */
-  private async checkAccess(host: string): Promise<boolean> {
-    // Remove port if present
+  private async checkAccess(host: string, port?: number): Promise<boolean> {
+    // Remove port if present in host
     const domain = host.split(':')[0];
 
-    // Check blocklist first
-    if (this.isBlocked(domain)) {
+    // Check if it's an IP address
+    const ipType = isIP(domain);
+    if (ipType !== 0) {
+      // It's an IP address
+      if (!this.isIPAllowed(domain)) {
+        return false;
+      }
+    } else {
+      // It's a domain name
+      // Check localhost/loopback
+      if (this.isLocalhost(domain) && !this.config.allowLocalhost) {
+        return false;
+      }
+
+      // Check blocklist first
+      if (this.isBlocked(domain)) {
+        return false;
+      }
+    }
+
+    // Check port if provided
+    if (port !== undefined && !this.isPortAllowed(port)) {
       return false;
     }
 
@@ -151,6 +174,58 @@ export class NetworkProxy extends EventEmitter {
     }
 
     return false;
+  }
+
+  /**
+   * Check if localhost/loopback domain
+   */
+  private isLocalhost(domain: string): boolean {
+    return domain === 'localhost' ||
+           domain === '127.0.0.1' ||
+           domain === '::1' ||
+           domain.startsWith('127.') ||
+           domain === '0.0.0.0';
+  }
+
+  /**
+   * Check if IP is allowed
+   */
+  private isIPAllowed(ip: string): boolean {
+    // Check if loopback
+    if (this.isLocalhost(ip)) {
+      return this.config.allowLoopback !== false; // Default to true
+    }
+
+    // Check blocked IPs
+    if (this.config.blockedIPs?.includes(ip)) {
+      return false;
+    }
+
+    // If allowedIPs is specified, only allow those
+    if (this.config.allowedIPs && this.config.allowedIPs.length > 0) {
+      return this.config.allowedIPs.includes(ip);
+    }
+
+    // Default allow if not in blocklist
+    return true;
+  }
+
+  /**
+   * Check if port is allowed
+   */
+  private isPortAllowed(port: number): boolean {
+    // Check blocked ports (e.g., SSH, Telnet, RDP)
+    if (this.config.blockedPorts?.includes(port)) {
+      return false;
+    }
+
+    // If allowedPorts is specified, only allow those
+    if (this.config.allowedPorts && this.config.allowedPorts.length > 0) {
+      return this.config.allowedPorts.includes(port);
+    }
+
+    // Default allow if not in blocklist
+    return true;
   }
 
   /**

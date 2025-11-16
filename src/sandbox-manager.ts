@@ -43,6 +43,13 @@ export class SandboxManager extends EventEmitter {
       this.networkProxy = new NetworkProxy({
         allowedDomains: this.config.allowedDomains,
         blockedDomains: this.config.blockedDomains,
+        allowedIPs: this.config.allowedIPs,
+        blockedIPs: this.config.blockedIPs,
+        allowedPorts: this.config.allowedPorts,
+        blockedPorts: this.config.blockedPorts,
+        allowedProtocols: this.config.allowedProtocols,
+        allowLocalhost: this.config.allowLocalhost,
+        allowLoopback: this.config.allowLoopback,
         requireApproval: this.config.requireApprovalForNewDomains,
         socketPath: '/tmp/aider-sandbox-proxy.sock',
       });

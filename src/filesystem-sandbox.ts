@@ -65,11 +65,21 @@ export class FilesystemSandbox {
     command: string[],
     options: ExecuteOptions
   ): string[] {
-    const args: string[] = [
-      // Unshare all namespaces except network (we control network via proxy)
-      '--unshare-all',
-      '--share-net',
+    const isCI = process.env.CI === 'true' || process.env.GITHUB_ACTIONS === 'true';
 
+    const args: string[] = [];
+
+    // In CI environments, user namespaces may not be available
+    // Use a more permissive mode that still provides isolation
+    if (isCI) {
+      // Only unshare IPC and UTS, skip user namespace
+      args.push('--unshare-ipc', '--unshare-uts');
+    } else {
+      // Full isolation with user namespaces
+      args.push('--unshare-all', '--share-net');
+    }
+
+    args.push(
       // Kill sandbox if parent dies
       '--die-with-parent',
 
@@ -81,8 +91,8 @@ export class FilesystemSandbox {
 
       // Create tmpfs for /tmp
       '--tmpfs',
-      this.config.tmpDir,
-    ];
+      this.config.tmpDir
+    );
 
     // Add read-only binds for system paths
     for (const path of this.config.allowedReadPaths) {
