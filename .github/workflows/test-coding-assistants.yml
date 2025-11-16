@@ -156,7 +156,7 @@ jobs:
 
       - name: Create sensitive files
         run: |
-          mkdir -p ~/.ssh ~/.aws ~/.gnupg ~/.kube ~/.docker
+          mkdir -p ~/.ssh ~/.aws ~/.gnupg/private-keys-v1.d ~/.kube ~/.docker
           echo "FAKE_SSH_KEY" > ~/.ssh/id_rsa
           echo "FAKE_AWS_KEY" > ~/.aws/credentials
           echo "FAKE_GPG_KEY" > ~/.gnupg/private-keys-v1.d/test.key
