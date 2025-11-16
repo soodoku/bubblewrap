@@ -1,24 +1,34 @@
 {
-  "name": "aider-sandbox",
-  "version": "1.0.0",
-  "description": "Sandboxed wrapper for Aider AI coding agent using bubblewrap",
+  "name": "safe-code-assistant",
+  "version": "2.0.0",
+  "description": "Generic sandboxing wrapper for ANY AI coding assistant (Aider, code-puppy, etc.) using OS-level primitives",
   "main": "dist/index.js",
   "type": "module",
+  "bin": {
+    "safe-code": "dist/interactive-wrapper.js",
+    "sandbox": "dist/generic-cli.js"
+  },
   "scripts": {
-    "build": "tsc",
-    "dev": "tsx src/index.ts",
+    "build": "tsc && chmod +x dist/interactive-wrapper.js dist/generic-cli.js",
+    "dev": "tsx src/interactive-wrapper.ts",
+    "start": "npm run build && node dist/interactive-wrapper.js",
     "test": "vitest run",
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",
-    "sandbox": "tsx src/cli.ts",
     "lint": "eslint src --ext .ts"
   },
   "keywords": [
-    "aider",
     "sandbox",
     "bubblewrap",
     "security",
-    "ai-agent"
+    "ai-agent",
+    "coding-assistant",
+    "aider",
+    "code-puppy",
+    "cursor",
+    "copilot",
+    "safe",
+    "wrapper"
   ],
   "author": "",
   "license": "MIT",
