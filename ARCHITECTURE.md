@@ -2,7 +2,7 @@
 
 ## Overview
 
-Aider Sandbox implements a multi-layered security approach for running AI coding agents safely. The architecture is inspired by [Anthropic's Claude Code sandboxing](https://www.anthropic.com/research/claude-code-sandboxing).
+Bubblewrap implements a multi-layered security approach for running **any** command-line tool or AI coding agent safely. This includes Aider, code-puppy, npm, git, or any other CLI tool. The architecture is inspired by [Anthropic's Claude Code sandboxing](https://www.anthropic.com/research/claude-code-sandboxing).
 
 ## Core Components
 
@@ -44,8 +44,8 @@ Sandboxed Process → Unix Socket → Proxy → Internet
 ```
 
 **How it works**:
-1. Proxy creates Unix domain socket at `/tmp/aider-sandbox-proxy.sock`
-2. Sandboxed processes configured with `HTTP_PROXY=unix:///tmp/aider-sandbox-proxy.sock`
+1. Proxy creates Unix domain socket at `/tmp/bubblewrap-proxy.sock`
+2. Sandboxed processes configured with `HTTP_PROXY=unix:///tmp/bubblewrap-proxy.sock`
 3. Proxy intercepts all requests, validates domains
 4. Approved requests forwarded to actual destination
 
@@ -115,15 +115,30 @@ Command Execution
 Result + Logging
 ```
 
-### 5. Aider Wrapper (`aider-wrapper.ts`)
+### 5. CommandWrapper (`command-wrapper.ts`)
 
-**Purpose**: Provide Aider-specific integration
+**Purpose**: Generic wrapper for any command-line tool
 
 **Features**:
-- Aider CLI argument building
+- Execute any command in the sandbox
+- Permission management integration
+- Event system for approvals
+- Lifecycle management (init, shutdown)
+
+### 6. Tool-Specific Wrappers (Optional)
+
+**Purpose**: Convenience wrappers for popular tools
+
+**Available Wrappers**:
+- `AiderWrapper` - For Aider AI coding assistant
+- `CodePuppyWrapper` - For code-puppy
+- `GenericToolWrapper` - Convenience methods (npm, git, python, etc.)
+
+**Features**:
+- Tool-specific CLI argument building
 - Interactive mode support
 - Event forwarding
-- Lifecycle management
+- Simplified API
 
 ## Data Flow
 

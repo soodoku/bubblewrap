@@ -1,13 +1,22 @@
 {
-  "name": "safe-code-assistant",
+  "name": "bubblewrap",
   "version": "2.0.0",
-  "description": "Generic sandboxing wrapper for ANY AI coding assistant (Aider, code-puppy, etc.) using OS-level primitives",
+  "description": "Secure sandboxing wrapper for any AI coding assistant or command-line tool using OS-level primitives (bubblewrap on Linux, sandbox-exec on macOS)",
   "main": "dist/index.js",
+  "types": "dist/index.d.ts",
   "type": "module",
   "bin": {
     "safe-code": "dist/interactive-wrapper.js",
     "sandbox": "dist/generic-cli.js"
   },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/soodoku/bubblewrap.git"
+  },
+  "bugs": {
+    "url": "https://github.com/soodoku/bubblewrap/issues"
+  },
+  "homepage": "https://github.com/soodoku/bubblewrap#readme",
   "scripts": {
     "build": "tsc && chmod +x dist/interactive-wrapper.js dist/generic-cli.js",
     "dev": "tsx src/interactive-wrapper.ts",
@@ -15,8 +24,17 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",
-    "lint": "eslint src --ext .ts"
+    "lint": "eslint src --ext .ts",
+    "prepublishOnly": "npm run build && npm test",
+    "prepare": "npm run build"
   },
+  "files": [
+    "dist/**/*",
+    "README.md",
+    "LICENSE",
+    "ARCHITECTURE.md",
+    "SECURITY.md"
+  ],
   "keywords": [
     "sandbox",
     "bubblewrap",
