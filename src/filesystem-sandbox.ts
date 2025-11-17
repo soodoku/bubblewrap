@@ -7,23 +7,16 @@ import { SandboxConfig, CommandResult, ExecuteOptions } from './types.js';
 
 export class FilesystemSandbox {
   private useDirectExecution: boolean = false;
+  private hasLoggedFallback: boolean = false;
 
   constructor(private config: SandboxConfig) {
-    // In CI environments without user namespace support, we can't use bubblewrap's
-    // mount isolation features. Fall back to direct execution WITHOUT sandboxing.
-    const isCI = process.env.CI === 'true' || process.env.GITHUB_ACTIONS === 'true';
-    if (isCI) {
-      // GitHub Actions and similar CI environments typically don't support user namespaces
-      // which are required for bubblewrap's bind mounts. Use direct execution instead.
-      this.useDirectExecution = true;
-      console.warn('⚠️  CI environment detected - bubblewrap sandboxing is DISABLED');
-      console.warn('⚠️  Commands will run with full filesystem access');
-      console.warn('⚠️  For secure sandboxing in CI, use Docker or similar containerization');
-    }
+    // Bubblewrap availability will be determined at runtime
+    // If bubblewrap is not available, we'll fall back to direct execution
   }
 
   /**
    * Execute a command inside bubblewrap sandbox
+   * Falls back to direct execution if bubblewrap is not available
    */
   async executeCommand(
     command: string[],
@@ -31,7 +24,7 @@ export class FilesystemSandbox {
   ): Promise<CommandResult> {
     const startTime = Date.now();
 
-    // If direct execution mode, run command directly without bubblewrap
+    // If we've already determined direct execution is needed, use it
     if (this.useDirectExecution) {
       return this.executeDirectly(command, options, startTime);
     }
@@ -55,7 +48,19 @@ export class FilesystemSandbox {
       });
 
       proc.on('error', (error) => {
-        reject(new Error(`Failed to spawn bubblewrap: ${error.message}`));
+        // Bubblewrap not available - fall back to direct execution
+        if (error.message.includes('ENOENT') || error.message.includes('spawn')) {
+          if (!this.hasLoggedFallback) {
+            console.warn('⚠️  bubblewrap not found - falling back to direct execution WITHOUT sandboxing');
+            console.warn('⚠️  Commands will run with full filesystem access');
+            console.warn('⚠️  Install bubblewrap for secure sandboxing');
+            this.hasLoggedFallback = true;
+          }
+          this.useDirectExecution = true;
+          resolve(this.executeDirectly(command, options, startTime));
+        } else {
+          reject(new Error(`Failed to spawn bubblewrap: ${error.message}`));
+        }
       });
 
       proc.on('close', (code) => {
@@ -79,11 +84,11 @@ export class FilesystemSandbox {
   }
 
   /**
-   * Execute command directly without bubblewrap (for CI environments)
+   * Execute command directly without bubblewrap
    *
    * WARNING: This mode does NOT provide security sandboxing.
    * Commands run with full access to the filesystem.
-   * For secure sandboxing in CI, use Docker or similar containerization.
+   * This is a fallback when bubblewrap is not available.
    */
   private executeDirectly(
     command: string[],

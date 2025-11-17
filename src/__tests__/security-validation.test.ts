@@ -12,7 +12,6 @@ import { join } from 'path';
 describe('Security Validation Tests', () => {
   const testDir = process.cwd();
   let sandbox: PlatformSandbox;
-  const isCI = process.env.CI === 'true' || process.env.GITHUB_ACTIONS === 'true';
 
   beforeAll(async () => {
     const isAvailable = await PlatformSandbox.isAvailable();
@@ -22,10 +21,6 @@ describe('Security Validation Tests', () => {
       );
     }
 
-    if (isCI) {
-      console.warn('⚠️  Running in CI mode - sandboxing is disabled, security tests will be skipped');
-    }
-
     const config = getDefaultConfig(testDir);
     sandbox = new PlatformSandbox(config);
   });
@@ -33,16 +28,10 @@ describe('Security Validation Tests', () => {
   /**
    * TEST 1: Block SSH Key Access
    * Claim: "Automatically blocks access to SSH keys (~/.ssh)"
-   *
-   * NOTE: This test is skipped in CI environments where bubblewrap is unavailable.
-   * CI environments run without sandboxing and cannot enforce security boundaries.
    */
   it('TEST 1: Should block access to SSH private keys', async () => {
     const isAvailable = await PlatformSandbox.isAvailable();
-    if (!isAvailable || isCI) {
-      console.log('Skipped: Sandboxing not available');
-      return;
-    }
+    if (!isAvailable) return;
 
     const sshKeyPath = join(homedir(), '.ssh', 'id_rsa');
 
